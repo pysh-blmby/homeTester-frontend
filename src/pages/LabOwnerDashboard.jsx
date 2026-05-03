@@ -24,7 +24,7 @@ export default function LabOwnerDashboard() {
         api.get('/bookings/lab-bookings')
       ]);
       setLab(labRes.data);
-      setBookings(bookingsRes.data);
+      setBookings(Array.isArray(bookingsRes.data) ? bookingsRes.data : []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -63,10 +63,10 @@ export default function LabOwnerDashboard() {
     </div>
   );
 
-  const totalRevenue = bookings.filter(b => b.paymentStatus === 'Completed').reduce((sum, b) => sum + b.amountPaid, 0);
+  const totalRevenue = (bookings || []).filter(b => b.paymentStatus === 'Completed').reduce((sum, b) => sum + b.amountPaid, 0);
   
   const tabs = [
-    { id: 'bookings', icon: Activity, label: 'Live Orders', badge: bookings.filter(b => b.status === 'Pending').length },
+    { id: 'bookings', icon: Activity, label: 'Live Orders', badge: (bookings || []).filter(b => b.status === 'Pending').length },
     { id: 'analytics', icon: TrendingUp, label: 'Analytics' },
     { id: 'reports', icon: FileText, label: 'Records' },
   ];
@@ -125,7 +125,7 @@ export default function LabOwnerDashboard() {
               {bookings.length === 0 ? (
                 <div className="glass-card p-20 text-center text-slate-600 text-xs font-bold uppercase tracking-widest">No Active Telemetry</div>
               ) : (
-                bookings.map(booking => (
+                {(bookings || []).map(booking => (
                   <div key={booking._id} className="glass-card p-5 md:p-8 relative overflow-hidden group">
                     <div className="flex flex-col md:flex-row justify-between gap-6">
                       <div className="flex-1 space-y-4">

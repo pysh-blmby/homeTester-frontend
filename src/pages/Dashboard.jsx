@@ -18,7 +18,7 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const res = await api.get('/bookings/my-bookings');
-      setBookings(res.data);
+      setBookings(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -91,7 +91,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {bookings.map(booking => {
+            {(bookings || []).map(booking => {
               const status = statusMap[booking.status] || statusMap['Pending'];
               return (
                 <motion.div 

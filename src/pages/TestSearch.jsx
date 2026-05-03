@@ -19,7 +19,7 @@ export default function TestSearch() {
     setIsLoading(true);
     try {
       const res = await api.get(`/tests/search?keyword=${query}`);
-      setTests(res.data);
+      setTests(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -60,7 +60,7 @@ export default function TestSearch() {
         </form>
 
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-          {['All', 'CBC', 'Thyroid', 'Diabetes', 'Vitamin', 'Liver'].map(tag => (
+          {(['All', 'CBC', 'Thyroid', 'Diabetes', 'Vitamin', 'Liver'] || []).map(tag => (
             <button 
               key={tag} 
               onClick={() => { setKeyword(tag === 'All' ? '' : tag); fetchTests(tag === 'All' ? '' : tag); }}
@@ -95,7 +95,7 @@ export default function TestSearch() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tests.map((test) => (
+            {(tests || []).map((test) => (
               <motion.div 
                 layout
                 key={test._id} 
