@@ -3,26 +3,26 @@
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 199 89% 48%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --radius: 1rem;
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222 47% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221 83% 53%;
+    --radius: 1.25rem;
   }
 }
 
@@ -32,78 +32,60 @@
     -webkit-tap-highlight-color: transparent;
   }
   body {
-    @apply bg-black text-slate-100 antialiased overflow-x-hidden;
-    font-family: 'Outfit', 'Inter', sans-serif;
+    @apply bg-[#f8fafc] text-slate-900 antialiased overflow-x-hidden;
+    font-family: 'Inter', sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+    @apply tracking-tight;
   }
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-white/[0.03] border border-white/10 backdrop-blur-2xl rounded-[2rem] shadow-2xl;
+  .medical-card {
+    @apply bg-white border border-slate-100 rounded-[1.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300;
   }
   
-  .glass-panel {
-    @apply bg-black/40 border-b border-white/5 backdrop-blur-xl sticky top-0 z-50;
+  .glass-nav {
+    @apply bg-white/80 border-b border-slate-100 backdrop-blur-md sticky top-0 z-[100];
   }
 
-  .neon-glow {
-    @apply shadow-[0_0_20px_rgba(34,211,238,0.3)];
+  .premium-shadow {
+    shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1);
   }
 
   .mobile-bottom-nav {
-    @apply fixed bottom-0 left-0 right-0 h-20 bg-black/80 backdrop-blur-3xl border-t border-white/10 flex items-center justify-around px-4 z-[100];
+    @apply fixed bottom-0 left-0 right-0 h-20 bg-white/90 backdrop-blur-xl border-t border-slate-100 flex items-center justify-around px-4 z-[100] pb-safe;
   }
 
-  .app-transition {
-    transition: all 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  .section-padding {
+    @apply py-12 md:py-24 px-4 md:px-8;
+  }
+  
+  .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl h-12 px-8 transition-all active:scale-95 shadow-lg shadow-blue-600/20;
   }
 }
 
-/* Hide scrollbar for that app feel */
+/* Custom Scrollbar for Premium Feel */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.1);
-  border-radius: 10px;
+  @apply bg-slate-200 rounded-full;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.2);
+  @apply bg-slate-300;
 }
 
-.perspective-1000 {
-  perspective: 1000px;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
-
-.hologram-effect {
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.1) 0%, rgba(59, 130, 246, 0.1) 50%, rgba(139, 92, 246, 0.1) 100%);
-  position: relative;
-  overflow: hidden;
-}
-
-.hologram-effect::after {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.05) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  animation: scan 4s linear infinite;
-  pointer-events: none;
-}
-
-@keyframes scan {
-  0% { transform: translateY(-30%); }
-  100% { transform: translateY(30%); }
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
