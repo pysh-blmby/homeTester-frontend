@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import useCartStore from '../store/cartStore';
 import { Button } from '../components/ui/button';
-import { Search, MapPin, Clock, ShieldCheck, Activity, Star, Filter, ChevronRight, Stethoscope } from 'lucide-react';
+import { Search, MapPin, Clock, ShieldCheck, Activity, Star, Filter, ChevronRight, Stethoscope, CheckCircle2 } from 'lucide-react';
 
 export default function TestSearch() {
   const [keyword, setKeyword] = useState('');

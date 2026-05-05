@@ -6,7 +6,7 @@ import useAuthStore from '../store/authStore';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Trash2, ShoppingBag, ShieldCheck, MapPin, Calendar, CreditCard, ChevronRight, User as UserIcon, Activity, RefreshCw, AlertCircle, Clock, Heart, CheckCircle2 } from 'lucide-react';
+import { Trash2, ShoppingBag, ShieldCheck, MapPin, Calendar, CreditCard, ChevronRight, User as UserIcon, Activity, RefreshCw, AlertCircle, Clock, Heart, CheckCircle2, Lock } from 'lucide-react';
 
 export default function Cart() {
   const { items, removeFromCart, getTotalPrice, clearCart } = useCartStore();
