@@ -5,36 +5,41 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { MapPin, Search, ShieldCheck, Clock, Activity, Star, ChevronRight, Building2, BadgeCheck, Zap, Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { usePagination } from '../hooks/usePagination';
+import { Pagination } from '../components/ui/Pagination';
 
 export default function Labs() {
   const [labs, setLabs] = useState([]);
+  const [paginationData, setPaginationData] = useState(null);
   const [keyword, setKeyword] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const { currentPage, limit, onPageChange } = usePagination(9);
 
   useEffect(() => {
-    fetchLabs();
-  }, []);
+    fetchLabs(keyword, currentPage, limit);
+  }, [currentPage, limit]);
 
-  const fetchLabs = async (searchQuery = '') => {
+  const fetchLabs = async (searchQuery = '', page, limit) => {
     setIsLoading(true);
     try {
-      const res = await api.get(`/labs?keyword=${searchQuery}`);
-      setLabs(res.data);
+      const res = await api.get(`/labs?keyword=${searchQuery}&page=${page}&limit=${limit}`);
+      if (res.data.success) {
+        setLabs(res.data.data);
+        setPaginationData(res.data.pagination);
+      }
     } catch (error) {
       console.error(error);
-      setLabs([
-        { _id: '1', labName: 'Apollo Diagnostics', city: 'Mumbai', address: 'Andheri West', operatingTimings: { open: '08:00 AM', close: '08:00 PM' }, homeCollectionAvailable: true, rating: 4.8 },
-        { _id: '2', labName: 'Dr. Lal PathLabs', city: 'Delhi', address: 'South Extension', operatingTimings: { open: '07:30 AM', close: '09:00 PM' }, homeCollectionAvailable: true, rating: 4.6 },
-        { _id: '3', labName: 'Metropolis Healthcare', city: 'Bangalore', address: 'Indiranagar', operatingTimings: { open: '08:00 AM', close: '07:00 PM' }, homeCollectionAvailable: true, rating: 4.7 },
-      ]);
+      // Fallback is removed for production-ready code, but we keep it empty or show error
+      setLabs([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSearch = (e) => {
-    e.preventDefault();
-    fetchLabs(keyword);
+    if (e) e.preventDefault();
+    onPageChange(1);
+    fetchLabs(keyword, 1, limit);
   };
 
   return (
@@ -81,12 +86,14 @@ export default function Labs() {
             <Building2 className="w-6 h-6 text-blue-600" /> 
             Qualified Centers
           </h2>
-          <span className="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-widest rounded-lg">{labs.length} Results Found</span>
+          <span className="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-widest rounded-lg">
+            {paginationData?.totalItems || 0} Results Found
+          </span>
         </div>
 
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[1, 2, 3, 4, 5, 6].map(i => (
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => (
               <div key={i} className="h-80 bg-white rounded-[2.5rem] border border-slate-100 animate-pulse" />
             ))}
           </div>
@@ -97,62 +104,71 @@ export default function Labs() {
             </div>
             <h3 className="text-2xl font-bold text-slate-800 mb-2">No matching centers found</h3>
             <p className="text-slate-400 font-medium max-w-xs leading-relaxed">Try adjusting your search criteria or check for spelling errors.</p>
-            <Button variant="outline" className="mt-8 rounded-xl font-bold px-8" onClick={() => fetchLabs('')}>Reset Filters</Button>
+            <Button variant="outline" className="mt-8 rounded-xl font-bold px-8" onClick={() => { setKeyword(''); onPageChange(1); fetchLabs('', 1, limit); }}>Reset Filters</Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            {labs.map((lab) => (
-              <motion.div 
-                layout
-                key={lab._id} 
-                className="medical-card p-10 flex flex-col group relative overflow-hidden bg-white hover:shadow-[0_30px_60px_rgba(37,99,235,0.08)] transition-all duration-500"
-              >
-                {/* Popular Badge */}
-                {lab.rating >= 4.7 && (
-                  <div className="absolute top-6 right-6 px-3 py-1 bg-amber-50 text-amber-600 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-amber-100 flex items-center gap-1 z-20">
-                    <Star className="w-3 h-3 fill-amber-600" /> Top Rated
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+              {labs.map((lab) => (
+                <motion.div 
+                  layout
+                  key={lab._id} 
+                  className="medical-card p-10 flex flex-col group relative overflow-hidden bg-white hover:shadow-[0_30px_60px_rgba(37,99,235,0.08)] transition-all duration-500"
+                >
+                  {/* Popular Badge */}
+                  {lab.rating >= 4.7 && (
+                    <div className="absolute top-6 right-6 px-3 py-1 bg-amber-50 text-amber-600 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-amber-100 flex items-center gap-1 z-20">
+                      <Star className="w-3 h-3 fill-amber-600" /> Top Rated
+                    </div>
+                  )}
+                  
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-blue-50/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-blue-100/40 transition-colors" />
+                  
+                  <div className="mb-8 space-y-3 relative z-10">
+                    <div className="flex items-center gap-2">
+                      <div className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-bold uppercase tracking-widest rounded border border-emerald-100">NABL Certified</div>
+                      <div className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold uppercase tracking-widest rounded border border-blue-100 flex items-center gap-1"><ShieldCheck size={10}/> Verified</div>
+                    </div>
+                    <h3 className="text-3xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight tracking-tight">{lab.labName}</h3>
+                    <div className="flex items-start gap-2 text-slate-500 font-medium">
+                      <MapPin className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                      <p className="text-sm">{lab.city}, {lab.address}</p>
+                    </div>
                   </div>
-                )}
-                
-                <div className="absolute top-0 right-0 w-40 h-40 bg-blue-50/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-blue-100/40 transition-colors" />
-                
-                <div className="mb-8 space-y-3 relative z-10">
-                  <div className="flex items-center gap-2">
-                    <div className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-bold uppercase tracking-widest rounded border border-emerald-100">NABL Certified</div>
-                    <div className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold uppercase tracking-widest rounded border border-blue-100 flex items-center gap-1"><ShieldCheck size={10}/> Verified</div>
-                  </div>
-                  <h3 className="text-3xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight tracking-tight">{lab.labName}</h3>
-                  <div className="flex items-start gap-2 text-slate-500 font-medium">
-                    <MapPin className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
-                    <p className="text-sm">{lab.city}, {lab.address}</p>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-10 relative z-10">
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Clock size={10} /> Timings</p>
-                    <p className="text-xs font-bold text-slate-800">{lab.operatingTimings?.open.split(' ')[0]} - {lab.operatingTimings?.close}</p>
+                  <div className="grid grid-cols-2 gap-4 mb-10 relative z-10">
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Clock size={10} /> Timings</p>
+                      <p className="text-xs font-bold text-slate-800">{lab.operatingTimings?.open.split(' ')[0]} - {lab.operatingTimings?.close}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Zap size={10} /> Logistics</p>
+                      <p className="text-xs font-bold text-emerald-600">Home Collection</p>
+                    </div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Zap size={10} /> Logistics</p>
-                    <p className="text-xs font-bold text-emerald-600">Home Collection</p>
-                  </div>
-                </div>
 
-                <div className="mt-auto relative z-10 flex items-center gap-4">
-                  <Link to={`/labs/${lab._id}`} className="flex-1">
-                    <Button className="w-full h-14 rounded-2xl bg-slate-900 text-white hover:bg-black font-bold shadow-xl shadow-slate-900/10 transition-all active:scale-95 flex items-center justify-center gap-2 group/btn">
-                      Explore Center
-                      <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                  <div className="mt-auto relative z-10 flex items-center gap-4">
+                    <Link to={`/labs/${lab._id}`} className="flex-1">
+                      <Button className="w-full h-14 rounded-2xl bg-slate-900 text-white hover:bg-black font-bold shadow-xl shadow-slate-900/10 transition-all active:scale-95 flex items-center justify-center gap-2 group/btn">
+                        Explore Center
+                        <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                      </Button>
+                    </Link>
+                    <Button variant="ghost" size="icon" className="h-14 w-14 rounded-2xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 border border-slate-100 shrink-0">
+                      <Heart className="w-5 h-5" />
                     </Button>
-                  </Link>
-                  <Button variant="ghost" size="icon" className="h-14 w-14 rounded-2xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 border border-slate-100 shrink-0">
-                    <Heart className="w-5 h-5" />
-                  </Button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {paginationData && (
+              <Pagination 
+                {...paginationData} 
+                onPageChange={onPageChange}
+              />
+            )}
+          </>
         )}
       </section>
 

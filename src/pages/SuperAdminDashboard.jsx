@@ -1,36 +1,60 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, Activity, Beaker, DollarSign, CheckCircle2, XCircle, AlertCircle, TrendingUp, Settings, FileText, ChevronRight, LayoutDashboard, Database, CreditCard, ShieldCheck, Building2, Search, ArrowUpRight } from 'lucide-react';
+import { Users, Activity, Beaker, DollarSign, CheckCircle2, XCircle, AlertCircle, TrendingUp, Settings, FileText, ChevronRight, LayoutDashboard, Database, CreditCard, ShieldCheck, Building2, Search, ArrowUpRight, Phone, RefreshCw } from 'lucide-react';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
+import { usePagination } from '../hooks/usePagination';
+import { Pagination } from '../components/ui/Pagination';
 
 export default function SuperAdminDashboard() {
-  const [data, setData] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  const [listData, setListData] = useState([]);
+  const [paginationData, setPaginationData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const { currentPage, limit, onPageChange } = usePagination(10);
 
   useEffect(() => {
     fetchAnalytics();
   }, []);
 
+  useEffect(() => {
+    if (activeTab !== 'overview') {
+      fetchTabData(activeTab, currentPage, limit);
+    }
+  }, [activeTab, currentPage, limit]);
+
   const fetchAnalytics = async () => {
     try {
       const res = await api.get('/admin/analytics');
-      setData(res.data);
+      setAnalytics(res.data);
     } catch (error) {
       console.error('Failed to fetch admin data', error);
-      setData({
-        metrics: { totalRevenue: 1250000, totalBookings: 840, totalLabs: 52, totalUsers: 1402 },
-        monthlyRevenue: [
-          { name: 'Jan', revenue: 40000 }, { name: 'Feb', revenue: 60000 },
-          { name: 'Mar', revenue: 120000 }, { name: 'Apr', revenue: 200000 },
-          { name: 'May', revenue: 350000 }, { name: 'Jun', revenue: 480000 },
-        ],
-        pendingLabs: [
-          { _id: '1', labName: 'Apollo Diagnostics', ownerId: { name: 'Dr. Sharma', phone: '9876543210' }, status: 'Pending', createdAt: new Date().toISOString() }
-        ],
-      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTabData = async (tab, page, limit) => {
+    setLoading(true);
+    try {
+      let endpoint = '';
+      if (tab === 'approvals') endpoint = `/admin/labs?status=Pending&page=${page}&limit=${limit}`;
+      else if (tab === 'labs') endpoint = `/admin/labs?page=${page}&limit=${limit}`;
+      else if (tab === 'finance') endpoint = `/admin/bookings?page=${page}&limit=${limit}`;
+      else if (tab === 'users') endpoint = `/admin/users?page=${page}&limit=${limit}`;
+
+      if (endpoint) {
+        const res = await api.get(endpoint);
+        if (res.data.success) {
+          setListData(res.data.data);
+          setPaginationData(res.data.pagination);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch tab data', error);
+      setListData([]);
     } finally {
       setLoading(false);
     }
@@ -39,13 +63,14 @@ export default function SuperAdminDashboard() {
   const handleLabStatus = async (id, status) => {
     try {
       await api.put(`/admin/labs/${id}/status`, { status });
-      fetchAnalytics();
+      fetchTabData(activeTab, currentPage, limit);
+      fetchAnalytics(); // Update stats
     } catch (error) {
       alert('Failed to update lab status');
     }
   };
 
-  if (loading || !data) return (
+  if (loading && !analytics && activeTab === 'overview') return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center gap-4">
       <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
       <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Loading Governance Data...</span>
@@ -74,9 +99,10 @@ export default function SuperAdminDashboard() {
 
   const tabs = [
     { id: 'overview', icon: LayoutDashboard, label: 'Platform Metrics' },
-    { id: 'approvals', icon: ShieldCheck, label: 'Verification Queue', badge: data.pendingLabs.length },
+    { id: 'approvals', icon: ShieldCheck, label: 'Verification Queue', badge: analytics?.pendingLabs?.length || 0 },
     { id: 'labs', icon: Building2, label: 'Partner Labs' },
-    { id: 'finance', icon: CreditCard, label: 'Finance' }
+    { id: 'finance', icon: CreditCard, label: 'Platform Bookings' },
+    { id: 'users', icon: Users, label: 'User Registry' }
   ];
 
   return (
@@ -91,8 +117,8 @@ export default function SuperAdminDashboard() {
           </p>
         </div>
         <div className="flex gap-3 w-full lg:w-auto">
-          <Button variant="outline" className="flex-1 lg:flex-none h-12 px-8 rounded-xl border-slate-200 bg-white text-slate-600 font-bold shadow-sm">
-            <FileText className="w-4 h-4 mr-2" /> Audit Trail
+          <Button variant="outline" className="flex-1 lg:flex-none h-12 px-8 rounded-xl border-slate-200 bg-white text-slate-600 font-bold shadow-sm" onClick={fetchAnalytics}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Audit Refresh
           </Button>
           <Button className="flex-1 lg:flex-none h-12 px-8 rounded-xl bg-slate-900 text-white font-bold shadow-lg hover:bg-black transition-all">
             <Settings className="w-4 h-4 mr-2" /> System Settings
@@ -105,7 +131,7 @@ export default function SuperAdminDashboard() {
         {tabs.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => { setActiveTab(tab.id); onPageChange(1); }}
             className={`flex items-center gap-3 px-6 py-3 rounded-2xl border transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-white border-blue-100 shadow-md text-blue-600 font-bold' : 'bg-transparent border-transparent text-slate-400 font-semibold hover:text-slate-600'}`}
           >
             <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-blue-600' : 'text-slate-400'}`} />
@@ -121,7 +147,7 @@ export default function SuperAdminDashboard() {
 
       <div className="space-y-8">
         <AnimatePresence mode="wait">
-          {activeTab === 'overview' && (
+          {activeTab === 'overview' && analytics && (
             <motion.div 
               key="overview"
               initial={{ opacity: 0, y: 10 }} 
@@ -130,10 +156,10 @@ export default function SuperAdminDashboard() {
               className="space-y-8"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Total Revenue" value={`₹${(data.metrics.totalRevenue / 1000).toFixed(1)}K`} icon={DollarSign} trend="+24.5%" color="bg-blue-600" />
-                <StatCard title="Booking Traffic" value={data.metrics.totalBookings} icon={Activity} trend="+12.2%" color="bg-indigo-600" />
-                <StatCard title="Partner Network" value={data.metrics.totalLabs} icon={Building2} trend="+4.1%" color="bg-violet-600" />
-                <StatCard title="User Registry" value={data.metrics.totalUsers} icon={Users} trend="+18.4%" color="bg-blue-900" />
+                <StatCard title="Total Revenue" value={`₹${(analytics.metrics.totalRevenue / 1000).toFixed(1)}K`} icon={DollarSign} trend="+24.5%" color="bg-blue-600" />
+                <StatCard title="Booking Traffic" value={analytics.metrics.totalBookings} icon={Activity} trend="+12.2%" color="bg-indigo-600" />
+                <StatCard title="Partner Network" value={analytics.metrics.totalLabs} icon={Building2} trend="+4.1%" color="bg-violet-600" />
+                <StatCard title="User Registry" value={analytics.metrics.totalUsers} icon={Users} trend="+18.4%" color="bg-blue-900" />
               </div>
 
               <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
@@ -145,7 +171,7 @@ export default function SuperAdminDashboard() {
                 </div>
                 <div className="h-[350px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data.monthlyRevenue}>
+                    <AreaChart data={analytics.monthlyRevenue}>
                       <defs>
                         <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/>
@@ -163,49 +189,78 @@ export default function SuperAdminDashboard() {
             </motion.div>
           )}
 
-          {activeTab === 'approvals' && (
+          {(activeTab === 'approvals' || activeTab === 'labs' || activeTab === 'finance' || activeTab === 'users') && (
             <motion.div 
-              key="approvals"
+              key={activeTab}
               initial={{ opacity: 0, y: 10 }} 
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="space-y-6"
+              className="space-y-8"
             >
               <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                  <ShieldCheck className="w-6 h-6 text-blue-600" /> Pending Accreditations
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 capitalize">
+                  {activeTab === 'finance' ? 'Platform Bookings' : activeTab} oversight
                 </h2>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  {paginationData?.totalItems || 0} Records Found
+                </span>
               </div>
               
-              {data.pendingLabs.length === 0 ? (
+              {listData.length === 0 ? (
                 <div className="bg-white rounded-[2.5rem] p-24 text-center border border-slate-100 shadow-sm">
                   <CheckCircle2 className="w-16 h-16 text-emerald-100 mx-auto mb-6" />
-                  <h3 className="text-xl font-bold text-slate-800">Verification Queue Empty</h3>
-                  <p className="text-slate-400 text-sm mt-2">All partner laboratory requests have been processed.</p>
+                  <h3 className="text-xl font-bold text-slate-800">No records found</h3>
+                  <p className="text-slate-400 text-sm mt-2">The requested governance list is currently empty.</p>
                 </div>
               ) : (
-                <div className="grid gap-6">
-                  {data.pendingLabs.map(lab => (
-                    <div key={lab._id} className="medical-card p-8 flex flex-col md:flex-row items-center justify-between gap-8 group">
-                      <div className="flex items-center gap-6 w-full md:w-auto">
-                        <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center border border-blue-100 shrink-0">
-                          <Building2 className="w-8 h-8 text-blue-600" />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="font-bold text-slate-900 text-2xl truncate">{lab.labName}</h3>
-                          <div className="flex flex-wrap gap-4 mt-1">
-                            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest flex items-center gap-1.5"><Users size={12}/> {lab.ownerId?.name}</p>
-                            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest flex items-center gap-1.5"><Phone size={12}/> {lab.ownerId?.phone}</p>
+                <>
+                  <div className="grid gap-6">
+                    {listData.map(item => (
+                      <div key={item._id} className="medical-card p-8 flex flex-col md:flex-row items-center justify-between gap-8 group">
+                        <div className="flex items-center gap-6 w-full md:w-auto min-w-0">
+                          <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center border border-blue-100 shrink-0">
+                            {activeTab === 'labs' || activeTab === 'approvals' ? <Building2 className="w-8 h-8 text-blue-600" /> : 
+                             activeTab === 'users' ? <Users className="w-8 h-8 text-indigo-600" /> : 
+                             <Activity className="w-8 h-8 text-emerald-600" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-bold text-slate-900 text-2xl truncate">
+                              {item.labName || item.name || `Order #${item._id.substring(item._id.length-8).toUpperCase()}`}
+                            </h3>
+                            <div className="flex flex-wrap gap-4 mt-1">
+                              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5">
+                                {item.status || item.role || item.paymentStatus}
+                              </p>
+                              {item.ownerId && <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5"><Users size={12}/> {item.ownerId?.name}</p>}
+                              {item.email && <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{item.email}</p>}
+                            </div>
                           </div>
                         </div>
+                        
+                        <div className="flex gap-3 w-full md:w-auto">
+                          {activeTab === 'approvals' && (
+                            <>
+                              <Button className="flex-1 md:flex-none h-14 px-8 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-600/10 transition-all" onClick={() => handleLabStatus(item._id, 'Approved')}>Approve Accreditation</Button>
+                              <Button variant="ghost" className="flex-1 md:flex-none h-14 px-8 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold transition-all" onClick={() => handleLabStatus(item._id, 'Rejected')}>Reject</Button>
+                            </>
+                          )}
+                          {(activeTab === 'labs' || activeTab === 'users' || activeTab === 'finance') && (
+                            <Button variant="outline" className="flex-1 md:flex-none h-14 px-8 rounded-xl border-slate-200 text-slate-600 font-bold flex items-center gap-2">
+                              View Details <ChevronRight size={16} />
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-3 w-full md:w-auto">
-                        <Button className="flex-1 md:flex-none h-14 px-8 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-600/10 transition-all" onClick={() => handleLabStatus(lab._id, 'Approved')}>Approve Accreditation</Button>
-                        <Button variant="ghost" className="flex-1 md:flex-none h-14 px-8 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold transition-all" onClick={() => handleLabStatus(lab._id, 'Rejected')}>Reject</Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+
+                  {paginationData && (
+                    <Pagination 
+                      {...paginationData} 
+                      onPageChange={onPageChange}
+                    />
+                  )}
+                </>
               )}
             </motion.div>
           )}

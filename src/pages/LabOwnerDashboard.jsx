@@ -5,26 +5,33 @@ import { Building2, Activity, Stethoscope, FileText, UploadCloud, Users, Refresh
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { usePagination } from '../hooks/usePagination';
+import { Pagination } from '../components/ui/Pagination';
 
 export default function LabOwnerDashboard() {
   const [lab, setLab] = useState(null);
   const [bookings, setBookings] = useState([]);
+  const [paginationData, setPaginationData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('bookings');
   const [uploadingBookingId, setUploadingBookingId] = useState(null);
+  const { currentPage, limit, onPageChange } = usePagination(5);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    fetchDashboardData(currentPage, limit);
+  }, [currentPage, limit]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (page, limit) => {
     try {
       const [labRes, bookingsRes] = await Promise.all([
         api.get('/labs/owner/me'),
-        api.get('/bookings/lab-bookings')
+        api.get(`/bookings/lab-bookings?page=${page}&limit=${limit}`)
       ]);
       setLab(labRes.data);
-      setBookings(Array.isArray(bookingsRes.data) ? bookingsRes.data : []);
+      if (bookingsRes.data.success) {
+        setBookings(bookingsRes.data.data);
+        setPaginationData(bookingsRes.data.pagination);
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -35,7 +42,7 @@ export default function LabOwnerDashboard() {
   const handleStatusUpdate = async (bookingId, status) => {
     try {
       await api.put(`/bookings/${bookingId}/status`, { status });
-      fetchDashboardData();
+      fetchDashboardData(currentPage, limit);
     } catch (error) {
       alert('Failed to update status');
     }
@@ -47,7 +54,7 @@ export default function LabOwnerDashboard() {
     setTimeout(async () => {
       try {
         await api.put(`/bookings/${bookingId}/report`, { reportUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' });
-        fetchDashboardData();
+        fetchDashboardData(currentPage, limit);
       } catch (err) {
         alert('Upload failed');
       } finally {
@@ -56,7 +63,7 @@ export default function LabOwnerDashboard() {
     }, 1500);
   };
 
-  if (loading || !lab) return (
+  if (loading && !lab) return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center gap-4">
       <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
       <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Syncing Provider Portal...</span>
@@ -66,7 +73,7 @@ export default function LabOwnerDashboard() {
   const totalRevenue = (bookings || []).filter(b => b.paymentStatus === 'Completed').reduce((sum, b) => sum + b.amountPaid, 0);
   
   const tabs = [
-    { id: 'bookings', icon: Activity, label: 'Order Pipeline', badge: (bookings || []).filter(b => b.status === 'Pending').length },
+    { id: 'bookings', icon: Activity, label: 'Order Pipeline', badge: paginationData?.totalItems || 0 },
     { id: 'analytics', icon: TrendingUp, label: 'Performance' },
     { id: 'reports', icon: FileText, label: 'Medical Records' },
   ];
@@ -81,7 +88,7 @@ export default function LabOwnerDashboard() {
             <Building2 className="w-8 h-8 text-white" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">{lab.labName}</h1>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">{lab?.labName}</h1>
             <p className="text-slate-500 text-sm font-bold uppercase tracking-widest flex items-center gap-2">
               <ShieldCheck size={14} className="text-emerald-500" /> Authorized Diagnostic Center
             </p>
@@ -124,7 +131,7 @@ export default function LabOwnerDashboard() {
               initial={{ opacity: 0, y: 10 }} 
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="grid gap-6"
+              className="space-y-8"
             >
               {bookings.length === 0 ? (
                 <div className="bg-white rounded-[2.5rem] p-24 text-center border border-slate-100 shadow-sm">
@@ -135,73 +142,84 @@ export default function LabOwnerDashboard() {
                   <p className="text-slate-400 text-sm mt-2 max-w-xs mx-auto">Your patient booking pipeline is currently clear. New orders will appear here as they are created.</p>
                 </div>
               ) : (
-                (bookings || []).map(booking => (
-                  <div key={booking._id} className="medical-card p-6 md:p-8 flex flex-col lg:flex-row justify-between gap-8 group">
-                    <div className="flex-1 space-y-6">
-                      <div className="flex flex-wrap items-center gap-4">
-                        <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 bg-slate-100 rounded-full text-slate-500 border border-slate-200">
-                          ID: {booking._id.substring(booking._id.length - 8).toUpperCase()}
-                        </span>
-                        <span className={`text-[10px] font-bold uppercase tracking-widest px-4 py-1 rounded-full ${
-                          booking.status === 'Pending' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                          booking.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-blue-50 text-blue-600 border border-blue-100'
-                        }`}>{booking.status}</span>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <h3 className="text-2xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{booking.patientDetails?.fullName || 'Anonymous Patient'}</h3>
-                        <div className="flex flex-wrap gap-6">
-                          <p className="text-slate-500 text-sm font-medium flex items-center gap-2">
-                            <Phone className="w-4 h-4 text-slate-300" /> {booking.patientDetails?.phone}
-                          </p>
-                          <p className="text-slate-500 text-sm font-medium flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-slate-300" /> {booking.patientDetails?.address}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        {booking.tests.map(t => (
-                          <span key={t._id} className="text-[10px] font-bold bg-blue-50 text-blue-700 px-3 py-1 rounded-lg border border-blue-100 uppercase tracking-tight">{t.testName}</span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="lg:w-80 flex flex-col justify-between gap-6">
-                      <div className="bg-slate-50 rounded-2xl p-5 space-y-4 border border-slate-100 shadow-inner">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Expected Volume</span>
-                          <span className="text-slate-900 font-bold text-xl">₹{booking.amountPaid}</span>
-                        </div>
-                        <div className="h-px bg-slate-200" />
-                        <div className="flex items-center gap-3">
-                          <Calendar className="w-4 h-4 text-slate-400" />
-                          <span className="text-xs font-bold text-slate-600">{new Date(booking.slot).toLocaleDateString()} • {new Date(booking.slot).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        {booking.status === 'Pending' && (
-                          <Button className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-600/10 transition-all active:scale-95" onClick={() => handleStatusUpdate(booking._id, 'Confirmed')}>Confirm Order</Button>
-                        )}
-                        {booking.status === 'Confirmed' && (
-                          <Button className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/10 transition-all active:scale-95" onClick={() => handleStatusUpdate(booking._id, 'Sample Collected')}>Verify Sample Collection</Button>
-                        )}
-                        {(booking.status === 'Sample Collected' || booking.status === 'Processing') && (
-                          <div className="w-full relative">
-                            <Input type="file" id={`upload-${booking._id}`} className="hidden" onChange={(e) => handleFileUpload(booking._id, e)} accept=".pdf" />
-                            <Button className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/10 transition-all active:scale-95" onClick={() => document.getElementById(`upload-${booking._id}`).click()} disabled={uploadingBookingId === booking._id}>
-                              {uploadingBookingId === booking._id ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><UploadCloud className="w-5 h-5 mr-2" /> Release Medical Report</>}
-                            </Button>
+                <>
+                  <div className="grid gap-6">
+                    {(bookings || []).map(booking => (
+                      <div key={booking._id} className="medical-card p-6 md:p-8 flex flex-col lg:flex-row justify-between gap-8 group">
+                        <div className="flex-1 space-y-6">
+                          <div className="flex flex-wrap items-center gap-4">
+                            <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 bg-slate-100 rounded-full text-slate-500 border border-slate-200">
+                              ID: {booking._id.substring(booking._id.length - 8).toUpperCase()}
+                            </span>
+                            <span className={`text-[10px] font-bold uppercase tracking-widest px-4 py-1 rounded-full ${
+                              booking.status === 'Pending' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                              booking.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-blue-50 text-blue-600 border border-blue-100'
+                            }`}>{booking.status}</span>
                           </div>
-                        )}
-                        {booking.status === 'Report Uploaded' && (
-                          <Button className="w-full h-14 bg-slate-900 hover:bg-black text-white font-bold rounded-xl shadow-lg transition-all active:scale-95" onClick={() => handleStatusUpdate(booking._id, 'Completed')}>Archive Booking</Button>
-                        )}
+                          
+                          <div className="space-y-3">
+                            <h3 className="text-2xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{booking.patientDetails?.fullName || 'Anonymous Patient'}</h3>
+                            <div className="flex flex-wrap gap-6">
+                              <p className="text-slate-500 text-sm font-medium flex items-center gap-2">
+                                <Phone className="w-4 h-4 text-slate-300" /> {booking.patientDetails?.phone}
+                              </p>
+                              <p className="text-slate-500 text-sm font-medium flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-slate-300" /> {booking.patientDetails?.address}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 pt-2">
+                            {booking.tests.map(t => (
+                              <span key={t._id} className="text-[10px] font-bold bg-blue-50 text-blue-700 px-3 py-1 rounded-lg border border-blue-100 uppercase tracking-tight">{t.testName}</span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="lg:w-80 flex flex-col justify-between gap-6">
+                          <div className="bg-slate-50 rounded-2xl p-5 space-y-4 border border-slate-100 shadow-inner">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Expected Volume</span>
+                              <span className="text-slate-900 font-bold text-xl">₹{booking.amountPaid}</span>
+                            </div>
+                            <div className="h-px bg-slate-200" />
+                            <div className="flex items-center gap-3">
+                              <Calendar className="w-4 h-4 text-slate-400" />
+                              <span className="text-xs font-bold text-slate-600">{new Date(booking.slot).toLocaleDateString()} • {new Date(booking.slot).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            {booking.status === 'Pending' && (
+                              <Button className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-600/10 transition-all active:scale-95" onClick={() => handleStatusUpdate(booking._id, 'Confirmed')}>Confirm Order</Button>
+                            )}
+                            {booking.status === 'Confirmed' && (
+                              <Button className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/10 transition-all active:scale-95" onClick={() => handleStatusUpdate(booking._id, 'Sample Collected')}>Verify Sample Collection</Button>
+                            )}
+                            {(booking.status === 'Sample Collected' || booking.status === 'Processing') && (
+                              <div className="w-full relative">
+                                <Input type="file" id={`upload-${booking._id}`} className="hidden" onChange={(e) => handleFileUpload(booking._id, e)} accept=".pdf" />
+                                <Button className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/10 transition-all active:scale-95" onClick={() => document.getElementById(`upload-${booking._id}`).click()} disabled={uploadingBookingId === booking._id}>
+                                  {uploadingBookingId === booking._id ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><UploadCloud className="w-5 h-5 mr-2" /> Release Medical Report</>}
+                                </Button>
+                              </div>
+                            )}
+                            {booking.status === 'Report Uploaded' && (
+                              <Button className="w-full h-14 bg-slate-900 hover:bg-black text-white font-bold rounded-xl shadow-lg transition-all active:scale-95" onClick={() => handleStatusUpdate(booking._id, 'Completed')}>Archive Booking</Button>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))
+
+                  {paginationData && (
+                    <Pagination 
+                      {...paginationData} 
+                      onPageChange={onPageChange}
+                    />
+                  )}
+                </>
               )}
             </motion.div>
           )}
@@ -220,7 +238,7 @@ export default function LabOwnerDashboard() {
                   <p className="text-4xl font-bold text-slate-900 tracking-tight">₹{totalRevenue.toLocaleString()}</p>
                 </div>
                 <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Successful Orders</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Items on Page</p>
                   <p className="text-4xl font-bold text-slate-900 tracking-tight">{bookings.length}</p>
                 </div>
                 <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
